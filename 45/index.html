@@ -87,7 +87,7 @@ function scan(){
   			var slots = [];
   			$.each(center.sessions, function () {
   				if(this.min_age_limit=45 && this.available_capacity_dose1>0){
-  					slots.push([this.date,this.min_age_limit,this.available_capacity_dose1].join(','));
+  					slots.push(this.available_capacity_dose1);
   				}
   				
 			});
