@@ -71,57 +71,69 @@ function notifyMe() {
 
 function scan(){
 
-		$("#data-table tbody").empty();
-	$.ajax({
-	    'url': "https://cdn-api.co-vin.in/api/v2/appointment/sessions/calendarByDistrict?district_id=725&date="+moment(new Date()).format("DD-MM-YYYY"),
-	    'method': "GET",
-	    'contentType': 'application/json'
-	}).done( function(data) {
-		
-		var table_data = []
+	$("#data-table tbody").empty();
+	
+	$.ajax({ 
+		cache: false,
+    		'url': "https://cdn-api.co-vin.in/api/v2/appointment/sessions/calendarByDistrict?district_id=725&date="+moment(new Date()).format("DD-MM-YYYY"),
+	    	'method': "GET",
+	    	'contentType': 'application/json',
+    		success: function (data) {
+			processData(data);
+        		setTimeout(function(){ scan(); }, (5000 + Math.floor(Math.random() * 5000)) );
+    		},
+    		error: function (ajaxContext) {
+        		console.log(ajaxContext.responseText);
+			setTimeout(function(){ scan(); }, (5000 + Math.floor(Math.random() * 5000)) );
+    		}
+	});
 
-		$.each(data.centers, function () {
+}
+	
+function processData(data) {
+
+	var table_data = []
+
+	$.each(data.centers, function () {
 
 
-  			var center = this;
-  			var slots = [];
-  			$.each(center.sessions, function () {
-  				if(this.min_age_limit==45 && this.available_capacity_dose1>0){
-  					slots.push(this.available_capacity_dose1);
-  				}
-  				
-			});
-			if(slots.length>0){
-					table_data.push( [center.name + '<br/>' + center.address + '<br/>' + center.pincode,
-						slots.join('<br/>')] );
-  	
+		var center = this;
+		var slots = [];
+		$.each(center.sessions, function () {
+			if(this.min_age_limit==45 && this.available_capacity_dose1>0){
+				slots.push(this.available_capacity_dose1);
 			}
 
 		});
+		if(slots.length>0){
+				table_data.push( [center.name + '<br/>' + center.address + '<br/>' + center.pincode,
+					slots.join('<br/>')] );
 
-	
-		$.each(table_data, function () {
-			$("#data-table tbody").append('<tr><td>'+this[0]+'</td><td>'+this[1]+'</td></tr>');
-		});
-
-	
-		var summary = 'Data received for ' + data.centers.length + ' centers. Scanned date time: ' 
-		+ new Date();
-
-		$('#scan-summary').html(summary);
-
-		if(table_data.length>0){
-			if(shouldNotify){
-				notifyMe();
-				shouldNotify = false;	
-			}
-			
-		}else {
-			shouldNotify = true;
 		}
-		setTimeout(function(){ scan(); }, (5000 + Math.floor(Math.random() * 5000)) );
 
 	});
+
+
+	$.each(table_data, function () {
+		$("#data-table tbody").append('<tr><td>'+this[0]+'</td><td>'+this[1]+'</td></tr>');
+	});
+
+
+	var summary = 'Data received for ' + data.centers.length + ' centers. Scanned date time: ' 
+	+ new Date();
+
+	$('#scan-summary').html(summary);
+
+	if(table_data.length>0){
+		if(shouldNotify){
+			notifyMe();
+			shouldNotify = false;	
+		}
+
+	}else {
+		shouldNotify = true;
+	}
+
 }
 
 </script>
