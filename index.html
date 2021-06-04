@@ -152,6 +152,7 @@ function scan(){
         },
         error: function (ajaxContext) {
             console.log(ajaxContext.responseText);
+            $('#scan-summary').html('<p class="text-danger">Error in data</p>');
             setTimeout(function(){ scan(); }, (5000 + Math.floor(Math.random() * 5000)) );
         }
     });
