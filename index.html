@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,6 +13,38 @@
 <body>
 
 <div class="container">
+
+  <div class="row">
+    <div class="col-sm-4">
+        <label>State</label>
+        <select class="form-control" id="state" onchange="updateDistrict()">
+            <option value="">SELECT</option>
+        </select>
+    </div>
+    <div class="col-sm-4">
+        <label>District</label>
+        <select class="form-control" id="district">
+            <option value="">SELECT</option>
+        </select>
+    </div>
+     <div class="col-sm-2">
+        <label>Age</label>
+        <select class="form-control" id="age">
+            <option value="18">18+</option>
+            <option value="45">45+</option>
+        </select>
+    </div>
+     <div class="col-sm-2">
+        <label>Dose</label>
+        <select class="form-control" id="dose">
+            <option value="1">Dose 1</option>
+            <option value="2">Dose 2</option>
+        </select>
+    </div>
+  </div>
+  
+ 
+
 
   <table id="data-table" class="table table-bordered" style="margin-top: 20px;">
     <thead>
@@ -37,91 +70,142 @@ var shouldNotify = true;
 
 $(document).ready( function () {
 
-	// request permission on page load
-	document.addEventListener('DOMContentLoaded', function() {
-	 if (!Notification) {
-	  alert('Desktop notifications not available in your browser. Try Chromium.');
-	  return;
-	 }
+    // request permission on page load
+    document.addEventListener('DOMContentLoaded', function() {
+     if (!Notification) {
+      alert('Desktop notifications not available in your browser. Try Chromium.');
+      return;
+     }
 
-	 if (Notification.permission !== 'granted')
-	  Notification.requestPermission();
-	});
+     if (Notification.permission !== 'granted')
+      Notification.requestPermission();
+    });
 
 
-	scan();
+    populateStates();
 
-	notifyMe();
+    scan();
 
 });
 
+function populateStates() {
+
+    $.ajax({ 
+            'url': "https://cdn-api.co-vin.in/api/v2/admin/location/states",
+            'method': "GET",
+            'contentType': 'application/json',
+            success: function (data) {
+                $.each(data.states,function(){
+                    $('#state').append('<option value=' + this.state_id + '>' + this.state_name + '</option>');
+                });
+            },
+            error: function (ajaxContext) {
+            }
+    });
+}
+
+function updateDistrict() {
+    var state = $('#state').val();
+    $.ajax({ 
+            'url': "https://cdn-api.co-vin.in/api/v2/admin/location/districts/"+state,
+            'method': "GET",
+            'contentType': 'application/json',
+            success: function (data) {
+                $('#district').empty().append('<option value="">SELECT</option>');
+                $.each(data.districts,function(){
+                    $('#district').append('<option value=' + this.district_id + '>' + this.district_name + '</option>');
+                    
+                });
+            },
+            error: function (ajaxContext) {
+            }
+    });
+}
 
 function notifyMe() {
-	 if (Notification.permission !== 'granted')
-	  Notification.requestPermission();
-	 else {
-	  var notification = new Notification('CoWin Vaccines Notification', {
-	   body: 'Slots available ' + new Date(),
-	  });
-	  
-	 }
+     if (Notification.permission !== 'granted')
+      Notification.requestPermission();
+     else {
+      var notification = new Notification('CoWin Vaccines Notification', {
+       body: 'Slots available ' + new Date(),
+      });
+      
+     }
 }
 
 
 
 function scan(){
 
-		$("#data-table tbody").empty();
-	$.ajax({
-	    'url': "https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/calendarByDistrict?district_id=725&date="+moment(new Date()).format("DD-MM-YYYY"),
-	    'method': "GET",
-	    'contentType': 'application/json'
-	}).done( function(data) {
-		
-		var table_data = []
+    var district = $('#district').val();
+ 
+    $("#data-table tbody").empty();
+    
+    $.ajax({ 
+        cache: false,
+        'url': "https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/calendarByDistrict?district_id="+district+"&date="+moment(new Date()).format("DD-MM-YYYY"),
+        'method': "GET",
+        'contentType': 'application/json',
+        success: function (data) {
+            processData(data);
+                setTimeout(function(){ scan(); }, (5000 + Math.floor(Math.random() * 5000)) );
+        },
+        error: function (ajaxContext) {
+            console.log(ajaxContext.responseText);
+            setTimeout(function(){ scan(); }, (5000 + Math.floor(Math.random() * 5000)) );
+        }
+    });
 
-		$.each(data.centers, function () {
+}
+    
+function processData(data) {
+
+    var age = $('#age').val();
+    var dose = $('#dose').val();
+
+    var table_data = []
+
+    $.each(data.centers, function () {
 
 
-  			var center = this;
-  			var slots = [];
-  			$.each(center.sessions, function () {
-  				if(this.available_capacity_dose1>0){
-  					slots.push([this.date,this.min_age_limit,this.available_capacity_dose1].join(','));
-  				}
-  				
-			});
-			if(slots.length>0){
-					table_data.push( [center.name + '<br/>' + center.address + '<br/>' + center.pincode,
-						slots.join('<br/>')] );
-  	
-			}
+        var center = this;
+        var slots = [];
+        $.each(center.sessions, function () {
+            if(this.min_age_limit==age){
+                if(dose==1 && this.available_capacity_dose1>0)slots.push(this.available_capacity_dose1);
+                if(dose==2 && this.available_capacity_dose2>0)slots.push(this.available_capacity_dose2);
+            }
 
-		});
+        });
+        if(slots.length>0){
+                table_data.push( [center.name + '<br/>' + center.address + '<br/>' + center.pincode,
+                    slots.join('<br/>')] );
 
-	
-		$.each(table_data, function () {
-			$("#data-table tbody").append('<tr><td>'+this[0]+'</td><td>'+this[1]+'</td></tr>');
-		});
+        }
 
-	
-		var summary = 'Data received for ' + data.centers.length + ' centers. Scanned date time: ' 
-		+ new Date();
+    });
 
-		$('#scan-summary').html(summary);
 
-		if(table_data.length>0){
-			if(shouldNotify){
-				notifyMe();
-				shouldNotify = false;	
-			}
-			
-		}else {
-			shouldNotify = true;
-		}
-		setTimeout(function(){ scan(); }, (5000 + Math.floor(Math.random() * 5000)) );
+    $.each(table_data, function () {
+        $("#data-table tbody").append('<tr><td>'+this[0]+'</td><td>'+this[1]+'</td></tr>');
+    });
 
-	});
+
+    var summary = 'Data received for ' + data.centers.length + ' centers. Scanned date time: ' 
+    + new Date();
+
+    $('#scan-summary').html(summary);
+
+    if(table_data.length>0){
+        if(shouldNotify){
+            notifyMe();
+            shouldNotify = false;   
+        }
+
+    }else {
+        shouldNotify = true;
+    }
+
 }
 
 </script>
